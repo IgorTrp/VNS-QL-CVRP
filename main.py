@@ -8,12 +8,15 @@ from pathlib import Path
 from CVRP.cvrp_instance_and_load import load_cvrp_instances
 from CVRP.cvrp_solution import is_valid
 from gvns import gvns
+from gvns_ql import gvns_ql
 
 FOLDER = Path(__file__).resolve().parent / "data" / "instances"
+LOG_FILE = Path(__file__).resolve().parent / "data" / "logs" / "log.txt"
+
 NUMBER_OF_INSTANCES: int = 3
 SEED_RANGE: int = 5
 TIME_LIMIT: int = 480
-LOG_FILE = Path(__file__).resolve().parent / "data" / "logs" / "log.txt"
+
 
 
 def main() -> None:

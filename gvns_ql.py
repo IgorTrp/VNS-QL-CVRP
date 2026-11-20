@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import random
+import sys
 import time
 from pathlib import Path
 from dataclasses import dataclass
@@ -336,8 +337,7 @@ def _shake(solution: Solution, neighborhood: int, rng: random.Random) -> Solutio
             selected = candidate
 
     if selected is None:
-        print('_shake returned an empty solution.')
-
+        print('_shake returned an empty solution.', file=sys.stderr, flush=True)
     return selected if selected is not None else solution
 
 
@@ -374,28 +374,15 @@ def _q_learning_update(q_table: dict[str, list[float]], selected: dict[str, int]
         values[action_index] = old_value + learning_factor * (reward + discount_factor * max(values) - old_value)
 
 
-
-def _write_checkpoint(instance_name: str, seed: int | None, time_limit: float, checkpoint_second: int,
-                      elapsed_seconds: float, best_cost: float, current_cost: float, iterations: int) -> None:
-
-    _CHECKPOINT_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with _CHECKPOINT_LOG.open("a", encoding="utf-8") as log_file:
-        if checkpoint_second == 0:
-            print(
-                f"\n=== GVNS-QL run: instance={instance_name}, seed={seed}, "
-                f"time_limit={time_limit:g}s ===",
-                file=log_file,
-            )
-
-        print(
-            f"[checkpoint {checkpoint_second}s; "
-            f"actual elapsed={elapsed_seconds:.2f}s]",
-            file=log_file,
-        )
-        print(f"best_objective: {best_cost:.6f}", file=log_file)
-        print(f"current_objective: {current_cost:.6f}", file=log_file)
-        print(f"iterations: {iterations}", file=log_file)
-        print(file=log_file)
+def _log_best(instance_name: str, seed: int, elapsed_seconds: float,
+              current_cost: float , best_cost: float, iterations: int) -> None:
+    print(
+        f"instance={instance_name},seed={seed},",
+        f"elapsed_s={elapsed_seconds:.2f},best_cost={best_cost:.6f},",
+        f"current_cost={current_cost:.6f},iterations={iterations},",
+        f"algorithm=gvns_ql",
+        flush=True,
+    )
 
 
 def _temperature_scale(solution: Solution) -> float:
@@ -442,19 +429,8 @@ def gvns_ql(cvrp: CVRPInstance, time_limit: float = 480.0,
     best_cost = current_cost
     q_table = {name: [0.0] * len(actions) for name, actions in _ACTIONS.items()}
     iterations = 0
-    checkpoint_index = 0
 
-    _write_checkpoint(
-        cvrp.name,
-        seed,
-        time_limit,
-        _CHECKPOINT_SECONDS[checkpoint_index],
-        time.monotonic() - start,
-        best_cost,
-        current_cost,
-        iterations,
-    )
-    checkpoint_index += 1
+    _log_best(cvrp.name, seed, time.monotonic() - start, current_cost, best_cost, iterations)
 
     k_max = 2
     while not _is_deadline():
@@ -481,6 +457,11 @@ def gvns_ql(cvrp: CVRPInstance, time_limit: float = 480.0,
             )
             candidate_cost = objective(candidate)
             delta = candidate_cost - current_cost
+            iterations += 1
+
+            if current_cost + _EPS < best_cost:
+                best, best_cost = _copy_solution(current), current_cost
+                _log_best(cvrp.name, seed, time.monotonic() - start, current_cost, best_cost, iterations)
 
             if delta < -_EPS:
                 current, current_cost = candidate, candidate_cost
@@ -498,28 +479,10 @@ def gvns_ql(cvrp: CVRPInstance, time_limit: float = 480.0,
                 if _accept_worse(delta, temperature, rng):
                     current, current_cost = candidate, candidate_cost
 
-            iterations += 1
 
-        if current_cost + _EPS < best_cost:
-            best, best_cost = _copy_solution(current), current_cost
 
-        elapsed_seconds = time.monotonic() - start
-        while (
-            checkpoint_index < len(_CHECKPOINT_SECONDS)
-            and elapsed_seconds >= _CHECKPOINT_SECONDS[checkpoint_index]
-        ):
-            checkpoint_second = _CHECKPOINT_SECONDS[checkpoint_index]
-            _write_checkpoint(
-                cvrp.name,
-                seed,
-                time_limit,
-                checkpoint_second,
-                elapsed_seconds,
-                best_cost,
-                current_cost,
-                iterations,
-            )
-            checkpoint_index += 1
+
+
 
     return SearchResult(
         solution=best,
