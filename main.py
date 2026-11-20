@@ -11,11 +11,10 @@ from gvns import gvns
 from gvns_ql import gvns_ql
 
 FOLDER = Path(__file__).resolve().parent / "data" / "instances"
-LOG_FILE = Path(__file__).resolve().parent / "data" / "logs" / "log.txt"
 
 NUMBER_OF_INSTANCES: int = 3
-SEED_RANGE: int = 5
-TIME_LIMIT: int = 480
+SEED_RANGE: int = 1
+TIME_LIMIT: int = 10
 
 
 
@@ -24,24 +23,13 @@ def main() -> None:
     if not instances:
         raise RuntimeError(f"No CVRP instances found in {FOLDER}")
 
-    print(f"Loaded {len(instances)} CVRP instances from {FOLDER}")
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+
 
     for name, instance in islice(instances.items(), NUMBER_OF_INSTANCES):
         for seed in range(SEED_RANGE):
             result = gvns(instance, TIME_LIMIT, seed)
             if not is_valid(result.solution, instance):
                 raise RuntimeError(f"GVNS produced an infeasible solution for {name}")
-
-            with LOG_FILE.open("a", encoding="utf-8") as log_file:
-                print(
-                    f"{name}, seed={seed}: initial distance="
-                    f"{result.initial_cost:.3f}, best distance={result.cost:.3f}, "
-                    f"routes={len(result.solution.routes)}, "
-                    f"iterations={result.iterations}, "
-                    f"elapsed={result.elapsed_seconds:.2f}s",
-                    file=log_file,
-                )
 
 
 if __name__ == "__main__":

@@ -375,15 +375,13 @@ def _q_learning_update(q_table: dict[str, list[float]], selected: dict[str, int]
 
 
 def _log_best(instance_name: str, seed: int, elapsed_seconds: float,
-              current_cost: float , best_cost: float, iterations: int) -> None:
+              best_cost: float, iterations: int, final: bool = False) -> None:
     print(
-        f"instance={instance_name},seed={seed},",
-        f"elapsed_s={elapsed_seconds:.2f},best_cost={best_cost:.6f},",
-        f"current_cost={current_cost:.6f},iterations={iterations},",
-        f"algorithm=gvns_ql",
+        f"algorithm=gvns-ql,instance={instance_name},seed={seed},"
+        f"elapsed_s={elapsed_seconds:.6f},best_objective={best_cost:.6f},"
+        f"iterations={iterations},final={final}",
         flush=True,
     )
-
 
 def _temperature_scale(solution: Solution) -> float:
     """CVRP adaptation of paper's flowshop temperature normalization.
@@ -430,7 +428,13 @@ def gvns_ql(cvrp: CVRPInstance, time_limit: float = 480.0,
     q_table = {name: [0.0] * len(actions) for name, actions in _ACTIONS.items()}
     iterations = 0
 
-    _log_best(cvrp.name, seed, time.monotonic() - start, current_cost, best_cost, iterations)
+    _log_best(
+        cvrp.name,
+        seed,
+        time.monotonic() - start,
+        best_cost,
+        iterations,
+    )
 
     k_max = 2
     while not _is_deadline():
@@ -459,10 +463,16 @@ def gvns_ql(cvrp: CVRPInstance, time_limit: float = 480.0,
             delta = candidate_cost - current_cost
             iterations += 1
 
-            if current_cost + _EPS < best_cost:
-                best, best_cost = _copy_solution(current), current_cost
-                _log_best(cvrp.name, seed, time.monotonic() - start, current_cost, best_cost, iterations)
-
+            if candidate_cost + _EPS < best_cost:
+                best = _copy_solution(candidate)
+                best_cost = candidate_cost
+                _log_best(
+                    cvrp.name,
+                    seed,
+                    time.monotonic() - start,
+                    best_cost,
+                    iterations,
+                )
             if delta < -_EPS:
                 current, current_cost = candidate, candidate_cost
                 k = 1
@@ -479,9 +489,14 @@ def gvns_ql(cvrp: CVRPInstance, time_limit: float = 480.0,
                 if _accept_worse(delta, temperature, rng):
                     current, current_cost = candidate, candidate_cost
 
-
-
-
+    _log_best(
+        cvrp.name,
+        seed,
+        time.monotonic() - start,
+        best_cost,
+        iterations,
+        True
+    )
 
 
     return SearchResult(

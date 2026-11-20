@@ -3,7 +3,6 @@ from __future__ import annotations
 import random
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
 from CVRP.cvrp_instance_and_load import CVRPInstance, euclidean_2d_edge_distance
@@ -19,14 +18,7 @@ class SearchResult:
     iterations: int
     elapsed_seconds: float
 
-
 _EPS = 1e-12
-_CHECKPOINT_SECONDS = (0, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 360 , 420 , 480, 540, 599)
-#_CHECKPOINT_LOG =   Path (r"D:\Users\Igor\Desktop\Praksa\__Projekat\logs\gvns_log.txt")
-
-#google collab checkpoint
-_CHECKPOINT_LOG = ( Path(__file__).resolve().parent / "data" / "logs" / "gvns_log.txt")
-
 
 instance: CVRPInstance
 CandidateGenerator = Callable[[Solution], Iterable[Solution]]
@@ -162,26 +154,14 @@ def exchange_local_search(solution: Solution) -> Solution:
 
     return current
 
-def _write_checkpoint(instance_name: str, seed: int | None, time_limit: float, checkpoint_second: int,
-    elapsed_seconds: float, best_cost: float, current_cost: float, iterations: int) -> None:
-    _CHECKPOINT_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with _CHECKPOINT_LOG.open("a", encoding="utf-8") as log_file:
-        if checkpoint_second == 0:
-            print(
-                f"\n=== GVNS run: instance={instance_name}, seed={seed}, "
-                f"time_limit={time_limit:g}s ===",
-                file=log_file,
-            )
-
-        print(
-            f"[checkpoint {checkpoint_second}s; "
-            f"actual elapsed={elapsed_seconds:.2f}s]",
-            file=log_file,
-        )
-        print(f"best_objective: {best_cost:.6f}", file=log_file)
-        print(f"current_objective: {current_cost:.6f}", file=log_file)
-        print(f"iterations: {iterations}", file=log_file)
-        print(file=log_file)
+def _log_best(instance_name: str, seed: int, elapsed_seconds: float,
+              best_cost: float, iterations: int, final: bool = False) -> None:
+    print(
+        f"algorithm=gvns,instance={instance_name},seed={seed},"
+        f"elapsed_s={elapsed_seconds:.6f},best_objective={best_cost:.6f},"
+        f"iterations={iterations},final={final}",
+        flush=True,
+    )
 
 
 def _shake(solution: Solution, neighborhood: int, rng: random.Random) -> Solution | None:
@@ -231,19 +211,14 @@ def gvns(cvrp: CVRPInstance, time_limit: float = 480.0, seed: int = 0) -> Search
     best = _copy_solution(current)
     best_cost = current_cost
     iterations = 0
-    checkpoint_index = 0
 
-    _write_checkpoint(
+    _log_best(
         cvrp.name,
         seed,
-        time_limit,
-        _CHECKPOINT_SECONDS[checkpoint_index],
         time.monotonic() - start,
         best_cost,
-        current_cost,
         iterations,
     )
-    checkpoint_index += 1
 
     k_max = 2
     while not _is_deadline():
@@ -263,27 +238,27 @@ def gvns(cvrp: CVRPInstance, time_limit: float = 480.0, seed: int = 0) -> Search
             else:
                 k += 1
 
-            if current_cost + _EPS < best_cost:
-                best, best_cost = _copy_solution(current), current_cost
             iterations += 1
 
-        elapsed_seconds = time.monotonic() - start
-        while (
-            checkpoint_index < len(_CHECKPOINT_SECONDS)
-            and elapsed_seconds >= _CHECKPOINT_SECONDS[checkpoint_index]
-        ):
-            checkpoint_second = _CHECKPOINT_SECONDS[checkpoint_index]
-            _write_checkpoint(
-                cvrp.name,
-                seed,
-                time_limit,
-                checkpoint_second,
-                elapsed_seconds,
-                best_cost,
-                current_cost,
-                iterations,
-            )
-            checkpoint_index += 1
+            if current_cost + _EPS < best_cost:
+                best, best_cost = _copy_solution(current), current_cost
+                _log_best(
+                    cvrp.name,
+                    seed,
+                    time.monotonic() - start,
+                    best_cost,
+                    iterations,
+                )
+
+    _log_best(
+        cvrp.name,
+        seed,
+        time.monotonic() - start,
+        best_cost,
+        iterations,
+        True
+    )
+
 
     return SearchResult(
         solution=best,
