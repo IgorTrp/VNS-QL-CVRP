@@ -1,2 +1,2 @@
-# VNS-QL-CVRP
+# VNS-QL implementation for CVRP
 
