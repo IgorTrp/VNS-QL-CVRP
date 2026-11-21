@@ -23,9 +23,8 @@ def main() -> None:
     if not instances:
         raise RuntimeError(f"No CVRP instances found in {FOLDER}")
 
-
-
-    for name, instance in islice(instances.items(), NUMBER_OF_INSTANCES):
+    instances = load_cvrp_instances(FOLDER)
+    for name, instance in instances.items():
         for seed in range(SEED_RANGE):
             result = gvns(instance, TIME_LIMIT, seed)
             if not is_valid(result.solution, instance):
