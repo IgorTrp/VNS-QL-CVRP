@@ -12,7 +12,7 @@ from gvns_ql import gvns_ql
 
 FOLDER = Path(__file__).resolve().parent / "data" / "instances"
 
-NUMBER_OF_INSTANCES: int = 3
+NUMBER_OF_INSTANCES: int = 27
 SEED_RANGE: int = 1
 TIME_LIMIT: int = 10
 

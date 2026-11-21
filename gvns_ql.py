@@ -332,6 +332,8 @@ def _shake(solution: Solution, neighborhood: int, rng: random.Random) -> Solutio
     for candidate in candidates:
         if _is_deadline():
             return solution
+        if candidate.routes == solution.routes:
+            continue
         count += 1
         if rng.randrange(count) == 0:
             selected = candidate
